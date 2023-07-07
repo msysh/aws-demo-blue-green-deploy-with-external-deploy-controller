@@ -1,0 +1,92 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "ModifyRuleForCleanUp",
+  "States": {
+    "ModifyRuleForCleanUp": {
+      "Type": "Task",
+      "Parameters": {
+        "RuleArn.$": "$.testListenerRuleArn",
+        "Actions": [
+          {
+            "Type": "fixed-response",
+            "FixedResponseConfig": {
+              "StatusCode": "400",
+              "ContentType": "text/plain",
+              "MessageBody": "Test environment is closed."
+            }
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:modifyRule",
+      "Next": "Choice",
+      "Comment": "Close test environment",
+      "ResultPath": "$.modifyRuleForCleanUp",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Fail",
+          "ResultPath": "$.errorModifyRuleForCleanUp"
+        }
+      ]
+    },
+    "Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.countTaskSets.count",
+          "NumericEquals": 0,
+          "Next": "Success",
+          "Comment": "First time"
+        }
+      ],
+      "Default": "DeleteTaskSet"
+    },
+    "DeleteTaskSet": {
+      "Type": "Task",
+      "Parameters": {
+        "Cluster.$": "$.clusterName",
+        "Service.$": "$.serviceName",
+        "TaskSet.$": "$.oldTaskSet.taskSetArn"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ecs:deleteTaskSet",
+      "Next": "DeleteTargetGroup",
+      "Comment": "Delete old task set",
+      "ResultPath": "$.deleteTaskSet",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Fail",
+          "ResultPath": "$.errorDeleteTaskSet"
+        }
+      ]
+    },
+    "Fail": {
+      "Type": "Fail"
+    },
+    "DeleteTargetGroup": {
+      "Type": "Task",
+      "Parameters": {
+        "TargetGroupArn.$": "$.describeRules.oldTargetGroupArn"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:deleteTargetGroup",
+      "Next": "Success",
+      "ResultPath": "$.deleteTargetGroup",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Fail",
+          "ResultPath": "$.errorTargetGroup"
+        }
+      ]
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}

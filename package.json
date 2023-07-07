@@ -1,8 +1,8 @@
 {
-  "name": "ecs-external-deploy-controler",
+  "name": "ecs-external-deploy-controller",
   "version": "0.1.0",
   "bin": {
-    "ecs-external-deploy-controler": "bin/ecs-external-deploy-controler.js"
+    "ecs-external-deploy-controller": "bin/ecs-external-deploy-controller.js"
   },
   "scripts": {
     "build": "tsc",
@@ -15,12 +15,12 @@
     "@types/node": "20.1.7",
     "jest": "^29.5.0",
     "ts-jest": "^29.1.0",
-    "aws-cdk": "2.85.0",
+    "aws-cdk": "2.87.0",
     "ts-node": "^10.9.1",
     "typescript": "~5.0.4"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.85.0",
+    "aws-cdk-lib": "2.87.0",
     "constructs": "^10.0.0",
     "source-map-support": "^0.5.21"
   }

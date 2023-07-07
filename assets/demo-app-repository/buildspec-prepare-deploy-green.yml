@@ -1,0 +1,39 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - AWS_ACCOUNT_ID=${CODEBUILD_BUILD_ARN} && TEMP_IFS=$IFS && IFS=':' && set -- $AWS_ACCOUNT_ID && AWS_ACCOUNT_ID=$5 && IFS=$TEMP_IFS
+
+  build:
+    commands:
+      - shortenServiceName=${serviceName//-/}
+      - shortenServiceName=${shortenServiceName:0:8}
+      - targetGroupName="tg-${shortenServiceName}-${CODEBUILD_RESOLVED_SOURCE_VERSION:0:15}"
+      - subnets="\"${subnets//,/\",\"}\""
+      - securityGroups="\"${securityGroups//,/\",\"}\""
+      - |
+        printf '{
+          "commitId": "%s",
+          "clusterName": "%s",
+          "serviceName": "%s",
+          "targetGroupName": "%s",
+          "prodListenerArn": "%s",
+          "prodListenerRuleArn": "%s",
+          "testListenerArn": "%s",
+          "testListenerRuleArn": "%s",
+          "taskDefinition": "%s",
+          "containerName": "%s",
+          "containerPort": %s,
+          "vpcId": "%s",
+          "subnets": [%s],
+          "securityGroups": [%s]
+        }' "${CODEBUILD_RESOLVED_SOURCE_VERSION}" "${clusterName}" "${serviceName}" "${targetGroupName}" "${prodListenerArn}" "${prodListenerRuleArn}" "${testListenerArn}" "${testListenerRuleArn}" "${taskDefinition}" "${containerName}" "${containerPort}" "${vpcId}" "${subnets}" "${securityGroups}" > ./statemachine-input.json
+
+  post_build:
+    commands:
+      - cat ./statemachine-input.json
+
+artifacts:
+  files:
+    - statemachine-input.json

@@ -1,0 +1,139 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Choice",
+  "States": {
+    "Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.countTaskSets.count",
+          "NumericEquals": 0,
+          "Next": "ModifyRuleForProd",
+          "Comment": "First time"
+        }
+      ],
+      "Default": "DescribeRules",
+      "Comment": "First time or not"
+    },
+    "DescribeRules": {
+      "Type": "Task",
+      "Next": "ModifyRuleForProd",
+      "Parameters": {
+        "RuleArns.$": "States.Array($.prodListenerRuleArn)"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:describeRules",
+      "ResultPath": "$.describeRules",
+      "ResultSelector": {
+        "oldTargetGroupArn.$": "$.Rules[0].Actions[0].TargetGroupArn"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Fail",
+          "ResultPath": "$.errorDescribeRules"
+        }
+      ],
+      "Comment": "Get current prod target group for delete after swap"
+    },
+    "Fail": {
+      "Type": "Fail"
+    },
+    "ModifyRuleForProd": {
+      "Type": "Task",
+      "Parameters": {
+        "RuleArn.$": "$.prodListenerRuleArn",
+        "Actions": [
+          {
+            "Type": "forward",
+            "ForwardConfig": {
+              "TargetGroups": [
+                {
+                  "TargetGroupArn.$": "$.createTargetGroup.targetGroupArn",
+                  "Weight": 100
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:modifyRule",
+      "Next": "UpdateServicePrimaryTaskSet",
+      "ResultPath": "$.modifyRuleForProd",
+      "ResultSelector": {
+        "ruleArn.$": "$.Rules[0].RuleArn"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Fail",
+          "ResultPath": "$.errorModifyRuleForProd"
+        }
+      ]
+    },
+    "UpdateServicePrimaryTaskSet": {
+      "Type": "Task",
+      "Parameters": {
+        "Cluster.$": "$.clusterName",
+        "PrimaryTaskSet.$": "$.createTaskSet.taskSetArn",
+        "Service.$": "$.serviceName"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ecs:updateServicePrimaryTaskSet",
+      "Next": "Success",
+      "ResultPath": "$.updateServicePrimaryTaskSet",
+      "ResultSelector": {
+        "taskSetArn.$": "$.TaskSet.TaskSetArn"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "ChoiceForRollback",
+          "ResultPath": "$.errorUpdateServicePrimaryTaskSet"
+        }
+      ]
+    },
+    "ChoiceForRollback": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.countTaskSets.count",
+          "NumericEquals": 0,
+          "Next": "Fail",
+          "Comment": "First time"
+        }
+      ],
+      "Default": "ModifyRuleForRollback",
+      "Comment": "First time or not"
+    },
+    "ModifyRuleForRollback": {
+      "Type": "Task",
+      "Parameters": {
+        "RuleArn.$": "$.prodListenerRuleArn",
+        "Actions": [
+          {
+            "Type": "forward",
+            "ForwardConfig": {
+              "TargetGroups": [
+                {
+                  "TargetGroupArn.$": "$.describeRules.oldTargetGroupArn",
+                  "Weight": 100
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:modifyRule",
+      "Next": "Fail",
+      "ResultPath": "$.modifyRuleForRollback"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}

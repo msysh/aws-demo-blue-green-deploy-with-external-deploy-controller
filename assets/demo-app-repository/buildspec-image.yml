@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - AWS_ACCOUNT_ID=${CODEBUILD_BUILD_ARN} && IFS=':' && set -- $AWS_ACCOUNT_ID && AWS_ACCOUNT_ID=$5
+      - echo Confirm ENV values
+      - echo \$AWS_DEFAULT_REGION = $AWS_DEFAULT_REGION
+      - echo \$AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID
+      - echo \$IMAGE_REPO_NAME = $IMAGE_REPO_NAME
+      - echo \$IMAGE_TAG = $CODEBUILD_RESOLVED_SOURCE_VERSION
+
+      - IMAGE_TAG=$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+
+      - echo Log in to Amazon ECR...
+      - aws ecr get-login-password | docker login -u AWS --password-stdin https://$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+  build:
+    commands:
+      - cp ${CODEBUILD_SRC_DIR_BuildApp}/index.html .
+      - echo Building the docker image ...
+      - docker build -t $IMAGE_URI:${IMAGE_TAG} .
+      - docker tag $IMAGE_URI:${IMAGE_TAG} $IMAGE_URI:latest
+  post_build:
+    commands:
+      - echo Pushing the Docker image...
+      - docker push $IMAGE_URI:$IMAGE_TAG
+      - docker push $IMAGE_URI:latest
+

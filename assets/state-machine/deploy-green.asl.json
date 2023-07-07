@@ -1,0 +1,201 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "DescribeServices",
+  "States": {
+    "DescribeServices": {
+      "Type": "Task",
+      "Next": "CountTaskSets",
+      "Parameters": {
+        "Cluster.$": "$.clusterName",
+        "Services.$": "States.Array($.serviceName)"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ecs:describeServices",
+      "Comment": "Get current task set (which should be less than or equal to 1)",
+      "ResultPath": "$.describeServices",
+      "ResultSelector": {
+        "taskSets.$": "$.Services[0].TaskSets"
+      }
+    },
+    "CountTaskSets": {
+      "Type": "Pass",
+      "Next": "Choice",
+      "ResultPath": "$.countTaskSets",
+      "Parameters": {
+        "count.$": "States.ArrayLength($.describeServices.taskSets)"
+      }
+    },
+    "Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.countTaskSets.count",
+          "NumericEquals": 0,
+          "Comment": "First deployment",
+          "Next": "CreateTargetGroup"
+        },
+        {
+          "Variable": "$.countTaskSets.count",
+          "NumericEquals": 1,
+          "Next": "CurrentTaskSet"
+        }
+      ],
+      "Default": "Fail",
+      "Comment": "if task sets >= 2, need to delete task sets"
+    },
+    "CreateTargetGroup": {
+      "Type": "Task",
+      "Parameters": {
+        "Name.$": "$.targetGroupName",
+        "Protocol": "HTTP",
+        "Port": 80,
+        "VpcId.$": "$.vpcId",
+        "HealthCheckProtocol": "HTTP",
+        "HealthCheckPort": "80",
+        "HealthCheckEnabled": true,
+        "HealthCheckPath": "/",
+        "HealthCheckIntervalSeconds": 10,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 5,
+        "Matcher": {
+          "HttpCode": "200"
+        },
+        "TargetType": "ip",
+        "IpAddressType": "ipv4"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:createTargetGroup",
+      "Next": "CreateTaskSet",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Fail"
+        }
+      ],
+      "ResultPath": "$.createTargetGroup",
+      "ResultSelector": {
+        "targetGroupArn.$": "$.TargetGroups[0].TargetGroupArn"
+      }
+    },
+    "CreateTaskSet": {
+      "Type": "Task",
+      "Next": "ModifyRuleForTest",
+      "Parameters": {
+        "Cluster.$": "$.clusterName",
+        "Service.$": "$.serviceName",
+        "TaskDefinition.$": "$.taskDefinition",
+        "ExternalId.$": "$.commitId",
+        "CapacityProviderStrategy": [
+          {
+            "CapacityProvider": "FARGATE_SPOT",
+            "Base": 0,
+            "Weight": 100
+          }
+        ],
+        "LoadBalancers": [
+          {
+            "TargetGroupArn.$": "$.createTargetGroup.targetGroupArn",
+            "ContainerName.$": "$.containerName",
+            "ContainerPort.$": "$.containerPort"
+          }
+        ],
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets.$": "$.subnets",
+            "SecurityGroups.$": "$.securityGroups",
+            "AssignPublicIp": "DISABLED"
+          }
+        },
+        "Scale": {
+          "Value": 100,
+          "Unit": "PERCENT"
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ecs:createTaskSet",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "DeleteTargetGroup",
+          "ResultPath": "$.errorCreateTaskSet"
+        }
+      ],
+      "ResultPath": "$.createTaskSet",
+      "ResultSelector": {
+        "taskSetArn.$": "$.TaskSet.TaskSetArn"
+      }
+    },
+    "ModifyRuleForTest": {
+      "Type": "Task",
+      "Parameters": {
+        "RuleArn.$": "$.testListenerRuleArn",
+        "Actions": [
+          {
+            "Type": "forward",
+            "ForwardConfig": {
+              "TargetGroups": [
+                {
+                  "TargetGroupArn.$": "$.createTargetGroup.targetGroupArn",
+                  "Weight": 100
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:modifyRule",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "DeleteTaskSet",
+          "ResultPath": "$.errorModifyRuleForTest"
+        }
+      ],
+      "Next": "Success",
+      "ResultPath": "$.modifyRuleForTest",
+      "ResultSelector": {
+        "ruleArn.$": "$.Rules[0].RuleArn"
+      }
+    },
+    "DeleteTaskSet": {
+      "Type": "Task",
+      "Next": "DeleteTargetGroup",
+      "Parameters": {
+        "Cluster.$": "$.clusterName",
+        "Service.$": "$.serviceName",
+        "TaskSet.$": "$.createTaskSet.tastkSetArn"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ecs:deleteTaskSet",
+      "ResultPath": "$.deleteTaskSet"
+    },
+    "DeleteTargetGroup": {
+      "Type": "Task",
+      "Next": "Fail",
+      "Parameters": {
+        "TargetGroupArn.$": "$.createTargetGroup.targetGroupArn"
+      },
+      "Resource": "arn:aws:states:::aws-sdk:elasticloadbalancingv2:deleteTargetGroup",
+      "ResultPath": "$.deleteTargetGroup"
+    },
+    "Success": {
+      "Type": "Succeed"
+    },
+    "Fail": {
+      "Type": "Fail"
+    },
+    "CurrentTaskSet": {
+      "Type": "Pass",
+      "Next": "CreateTargetGroup",
+      "Comment": "Get current task set id for delete after swap",
+      "ResultPath": "$.oldTaskSet",
+      "Parameters": {
+        "id.$": "$.describeServices.taskSets[0].Id",
+        "taskSetArn.$": "$.describeServices.taskSets[0].TaskSetArn"
+      }
+    }
+  }
+}

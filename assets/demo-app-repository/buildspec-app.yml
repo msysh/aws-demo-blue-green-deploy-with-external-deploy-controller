@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+#  install:
+  pre_build:
+    commands:
+      - echo Confirm ENV values
+      - echo \$CODEBUILD_RESOLVED_SOURCE_VERSION = $CODEBUILD_RESOLVED_SOURCE_VERSION
+  build:
+    commands:
+      - echo Build started on `date`
+      - sed -i s/{{commit_id}}/${CODEBUILD_RESOLVED_SOURCE_VERSION}/ index.html
+      - BUILD_DATE=`date +'%Y-%m-%d %H:%M:%S'`
+      - sed -i s/{{date}}/"${BUILD_DATE}"/ index.html
+#  post_build:
+#    commands:
+artifacts:
+  files:
+    - index.html
