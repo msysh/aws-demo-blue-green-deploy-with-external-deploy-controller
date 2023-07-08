@@ -34,7 +34,7 @@ git clone https://github.com/msysh/aws-demo-blue-green-deploy-with-external-depl
 ### 2. Deploy AWS resources by CDK
 
 ```bash
-cd aws-demo-ecs-external-deploy-controller
+cd aws-demo-blue-green-deploy-with-external-deploy-controller
 cdk deploy
 ```
 
