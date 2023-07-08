@@ -28,7 +28,7 @@ _Icons for IAM Role, Subnets, Security Groups, NAT Gateway and so on are omitted
 ### 1. Clone this project
 
 ```bash
-git clone git://github.com/msysh/aws-demo-ecs-external-deploy-controller
+git clone https://github.com/msysh/aws-demo-blue-green-deploy-with-external-deploy-controller.git
 ```
 
 ### 2. Deploy AWS resources by CDK
