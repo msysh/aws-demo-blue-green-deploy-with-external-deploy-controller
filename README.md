@@ -1,5 +1,7 @@
 # Demo : ECS Blue/Green Deploy with External Deploy Controller using AWS Step Functions
 
+[日本語の情報(for Japanese)](https://blog.msysh.me/posts/2023/07/demo_app_for_blue_green_deploy_with_ecs_external_deploy_controller_using_step_functions.html)
+
 This project is a demo application that implements a Blue/Green deployment with ECS External Deploy Controller using AWS Step Functions.
 
 ## Background
@@ -118,7 +120,7 @@ At this point, the pipeline is waiting for manual approval to clean up.
 
 Access AWS Management Console and open CodePipeline, and then approve to clean up.
 
-### 6. Clen up
+### 6. Clean up
 
 The pipeline invoke state machine to clean up.
 It is completed then you will no longer be able to access the test environment and the old production environment will be deleted.
