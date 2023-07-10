@@ -251,6 +251,7 @@ export class Workload extends Construct implements IWorkload {
     });
     const cfnService = service.node.defaultChild as ecs.CfnService;
     cfnService.addDeletionOverride('Properties.NetworkConfiguration');
+    cfnService.addDeletionOverride('Properties.DeploymentConfiguration.Alarms');
 
     // -----------------------------
     // Output
