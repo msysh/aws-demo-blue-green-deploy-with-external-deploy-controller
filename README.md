@@ -254,9 +254,11 @@ cd ${ThisProjectRoot}
 cdk destroy
 ```
 
-And remove ECR repository. Repository Uri is able to get as `EcrRepositoryUri` from CDK Output.
+And following resources:
 
-And remove S3 bucket for artifacts. S3 Bucket Name is able to get as `ArtifactBucketName` from CDK Output.
+* ECR repository. Repository Uri is able to get as `EcrRepositoryUri` from CDK Output.
+* S3 bucket for artifacts. S3 Bucket Name is able to get as `ArtifactBucketName` from CDK Output.
+* Target Groups. They are named `tg-{shortened ECS Service name}-{First 15 characters of Commit ID}`
 
 ## License
 
