@@ -4,6 +4,21 @@
 
 This project is a demo application that implements a Blue/Green deployment with ECS External Deploy Controller using AWS Step Functions.
 
+## Table of Contents
+
+* [Background](#background)
+* [B/G deploy demo overview](#bg-deploy-demo-overview)
+* [How to deploy](#how-to-deploy)
+* [How to play as demonstration](#how-to-play-as-demonstration)
+* [Dive Deep CodePipeline Flow](#dive-deep-codepipeline-flow)
+  * [CodeBuild for Build App](#codebuild-for-build-app)
+  * [CodeBuild for Build Image](#codebuild-for-build-image)
+  * [CodeBuild for Prepare Input](#codebuild-for-prepare-input)
+  * [State Machine Stage for Deploy Green Environment](#state-machine-stage-for-deploy-green-environment)
+  * [State Machine Stage for Swap](#state-machine-stage-for-swap)
+  * [State Machine Stage for Clean up](#state-machine-stage-for-clean-up)
+* [Clean up](#clean-up)
+
 ## Background
 
 CodeDeploy has capability Blue/Green deployment for Amazon ECS and we can set up CI/CD pipeline also with CodePipeline.
